@@ -1,8 +1,9 @@
 const express=require('express')
 const TASK=require('../modals/tasks')
+const auth=require('../middleware/auth')
 //new router creation
 const router = new express.Router()
-router.get('/TASKS',async(req,res)=>{
+router.get('/TASKS',auth,async(req,res)=>{
     // TASK.exists({}).then(()=>{
     //     TASK.find({iscompleted:true}).then((tasks)=>{
     //         if(tasks.length===0)
@@ -15,14 +16,16 @@ router.get('/TASKS',async(req,res)=>{
     //     })
     // })
     try{
-        const tasks=await TASK.find({})
-        res.send(tasks)
+        // const tasks=await TASK.find({creatorId:req.user._id})
+        // using populate below
+        await req.user.populate('tasks').execPopulate()
+        res.send(req.user.tasks)
     }catch(e){
         res.status(500).send()
     }
 })
 
-router.get('/TASKS/:id',async(req,res)=>{
+router.get('/TASKS/:id',auth,async(req,res)=>{
     const _id=req.params.id
     // TASK.findById(_id).then((task)=>{
     //     if(!task){
@@ -33,7 +36,7 @@ router.get('/TASKS/:id',async(req,res)=>{
     //     res.status(500).send()
     // })
     try{
-        const task=await TASK.findById(_id)
+        const task=await TASK.findOne({_id,creatorId:req.user._id})
         if(!task){
             return res.status(404).send()
         }
@@ -46,14 +49,12 @@ router.get('/TASKS/:id',async(req,res)=>{
 
 
 
-router.post('/TASKS',async(req,res)=>{
-    const task=new TASK(req.body)
-    // task.save().then(()=>{
-    //     res.status(201).send(task)
-    // }).catch((error)=>{
-    //     console.log('error')
-    //     res.status(400).send('error')
-    // })
+router.post('/TASKS',auth,async(req,res)=>{
+    //const task=new TASK(req.body)
+    const task=new TASK({
+        ...req.body,
+        creatorId:req.user._id
+    })
     try{
         await task.save()
         res.status(201).send(task)
@@ -63,7 +64,7 @@ router.post('/TASKS',async(req,res)=>{
 })
 
 
-router.patch('/TASKS/:id',async(req,res)=>{
+router.patch('/TASKS/:id',auth,async(req,res)=>{
     const updates=Object.keys(req.body)
     const allowedUpdates = ['description','iscompleted']
     const isValid=updates.every((update)=>allowedUpdates.includes(update))
@@ -72,22 +73,23 @@ router.patch('/TASKS/:id',async(req,res)=>{
     }
     try{
         // const task=await TASK.findByIdAndUpdate(req.params.id,req.body,{new:true,runValidators :true})
-        const task=await TASK.findById(req.params.id)
-        updates.forEach((update)=>task[update]=req.body[update])
-        await task.save()
-        
+        const task=await TASK.findOne({_id:req.params.id,creatorId:req.user._id})
+
         if(!task){
             return res.status(404).send()
         }
+
+        updates.forEach((update)=>task[update]=req.body[update])
+        await task.save()
         res.status(200).send(task) 
     }catch(e){
         res.status(400).send(e)
     }
 })
 
-router.delete('/TASKS/:id',async(req,res)=>{
+router.delete('/TASKS/:id',auth,async(req,res)=>{
     try{
-        const task = await TASK.findByIdAndDelete(req.params.id)
+        const task = await TASK.findOneAndDelete({_id:req.params.id,creatorId:req.user._id})
         if(!task){
             return res.status(404).send()
         }

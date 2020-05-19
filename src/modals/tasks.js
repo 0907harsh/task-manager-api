@@ -11,6 +11,11 @@ const TASK=mongoose.model('Tasks',{
         type: Boolean,
         trim:true,
         default:false
+    },
+    creatorId:{
+        type: mongoose.Schema.Types.ObjectId,
+        required:true,
+        ref:'USERS'
     }
 })
 

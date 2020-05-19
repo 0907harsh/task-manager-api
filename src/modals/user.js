@@ -2,7 +2,7 @@ const mongoose=require('mongoose')
 const validator=require('validator')
 const bcrypt=require('bcryptjs')
 const jwt=require('jsonwebtoken')
-
+const TASK=require('./tasks')
 //creating user schema
 const userSchema=new mongoose.Schema({
     name:{
@@ -51,6 +51,12 @@ const userSchema=new mongoose.Schema({
 // pre-before event is done
 // post-after event is done
 
+userSchema.virtual('tasks',{
+    ref:'Tasks',
+    localField:'_id',
+    foreignField:'creatorId'
+})
+
 
 //availableo USER
 userSchema.statics.findByCredentials = async(email,password)=>{
@@ -58,7 +64,7 @@ userSchema.statics.findByCredentials = async(email,password)=>{
     if(!user){
         throw new Error('Unable to login')
     }
-    const ismatch=bcrypt.compare(password,user.password)
+    const ismatch=await bcrypt.compare(password,user.password)
     if(!ismatch){
         throw new Error('Unable to login')
     }
@@ -74,12 +80,26 @@ userSchema.methods.generateAuthToken=async function(){
     return token
 }
 
+userSchema.methods.toJSON=function(){
+    const user=this
+    const userPublic = user.toObject()
+    delete userPublic.password
+    delete userPublic.tokens
+    return userPublic
+}
 
 //hash plain text passowrd before saving
 userSchema.pre('save',async function(next){
     if(this.isModified('password')){
         this.password=await bcrypt.hash(this.password,8)
     }
+    next()//to be given at the end
+})
+
+//delete user tasks before removing user
+userSchema.pre('remove',async function(next){
+    const user = this
+    await TASK.deleteMany({'creatorId':user._id})
     next()//to be given at the end
 })
 

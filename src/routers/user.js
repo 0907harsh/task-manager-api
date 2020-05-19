@@ -1,5 +1,6 @@
 const express=require('express')
 const USER=require('../modals/user')
+const auth=require('../middleware/auth')
 //new router creation
 const router = new express.Router()
 router.post('/USERS',async (req,res)=>{
@@ -19,10 +20,34 @@ router.post('/USERS/login',async(req,res)=>{
         const token=await user.generateAuthToken()
         res.status(202).send({user,token})
     }catch(e){
-        res.status(500).send(e)
+        res.status(500).send({error:'Unable to Login'})
     }
 })
-router.get('/USERS',async(req,res)=>{
+
+router.post('/USERS/logout',auth,async(req,res)=>{
+    try{
+        req.user.tokens=req.user.tokens.filter((token)=>{
+            return token.token !==req.token
+        })
+        await req.user.save()
+        res.status(202).send({success:'Logged Out Successfully'})
+    }catch(e){
+        res.status(500).send('errrrrrrrr')
+    }
+})
+
+router.post('/USERS/logoutAll',auth,async(req,res)=>{
+    try{
+        req.user.tokens=[]
+        await req.user.save()
+        res.status(202).send({success:'Logged Out Of all Sessions Successfully'})
+    }catch(e){
+        res.status(500).send('errrrrrrrr')
+    }
+})
+
+
+router.get('/USERS/me',auth,async(req,res)=>{
 //    USER.exists({}).then(()=>{
 //        USER.find({name:'ruchfi'}).then((users)=>{
 //            res.send(users)
@@ -33,35 +58,13 @@ router.get('/USERS',async(req,res)=>{
 //        })
 //    })
     try{
-        const users=await USER.find({})
-        res.send(users)
+        res.send(req.user)
     }catch(e){
         res.status(400).send(e)
     }
 })
 
-router.get('/USERS/:id',async (req,res)=>{
-    const _id=req.params.id
-    // USER.findById(_id).then((user)=>{
-    //     if(!user){
-    //         return res.status(404).send()
-    //     }
-    //     res.send(user)
-    // }).catch((e)=>{
-    //     res.status(500).send()
-    // })
-    try{
-        const user = await USER.findById(_id)
-        if(!user){
-            return res.status(400).send(user)
-        }
-        res.send(user)
-    }catch(e){
-        res.status(500).send()
-    }
- })
-
- router.patch('/USERS/:id',async(req,res)=>{
+router.patch('/USERS/me',auth,async(req,res)=>{
     const updates=Object.keys(req.body)
     const allowedUpdates = ['name','email','password','age']
     const isValid=updates.every((update)=>allowedUpdates.includes(update))
@@ -71,26 +74,20 @@ router.get('/USERS/:id',async (req,res)=>{
     try{
         // BYpasses middleware 
         // const user=await USER.findByIdAndUpdate(req.params.id,req.body,{new:true,runValidators :true})
-        const user=await USER.findById(req.params.id)
-        updates.forEach((update)=> user[update]=req.body[update])
-        await user.save()
-        if(!user){
-            return res.status(404).send()
-        }
-        res.status(200).send(user) 
+        updates.forEach((update)=> req.user[update]=req.body[update])
+        await req.user.save()
+        res.status(200).send(req.user) 
     }catch(e){
         res.status(400).send(e)
     }
 })
 
 
-router.delete('/USERS/:id',async(req,res)=>{
+router.delete('/USERS/me',auth,async(req,res)=>{
     try{
-        const user = await USER.findByIdAndDelete(req.params.id)
-        if(!user){
-            return res.status(404).send()
-        }
-        res.send(user)
+        // const user = await USER.findByIdAndDelete(req.user._id)
+        await req.user.remove()
+        res.send(req.user)
     } catch(e){
         res.status(500).send()
     }
