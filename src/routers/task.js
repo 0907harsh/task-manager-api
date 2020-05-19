@@ -3,7 +3,28 @@ const TASK=require('../modals/tasks')
 const auth=require('../middleware/auth')
 //new router creation
 const router = new express.Router()
+
+
+//GET /TASKS?iscompleted=true
+//GET /TASKS/limit=1&skip=23
+//GET /TASKS/sortBy=createdAt:desc
+//GET /TASKS/sortBy=createdAt:asc
 router.get('/TASKS',auth,async(req,res)=>{
+    const match={}
+    const sort={}
+    if(req.query.iscompleted){
+        match.iscompleted=req.query.iscompleted==='true'
+    }
+    if(req.query.sortBy){
+        const parts=req.query.sortBy.split(':')
+        if(parts[0]!=='iscompleted'){
+            sort[parts[0]]=parts[1]==='desc'?-1:1
+            sort[parts[0]]=parts[1]==='asc'?1:-1
+        }else{
+            sort[parts[0]]=parts[1]==='desc'?1:-1
+            sort[parts[0]]=parts[1]==='asc'?-1:1
+        }
+    }
     // TASK.exists({}).then(()=>{
     //     TASK.find({iscompleted:true}).then((tasks)=>{
     //         if(tasks.length===0)
@@ -18,7 +39,15 @@ router.get('/TASKS',auth,async(req,res)=>{
     try{
         // const tasks=await TASK.find({creatorId:req.user._id})
         // using populate below
-        await req.user.populate('tasks').execPopulate()
+        await req.user.populate({
+            path:'tasks',//user modal virtual property
+            match,//matches the given field for its valued
+            options:{//helps in maintang a cleaner record for the user
+                limit:parseInt(req.query.limit),
+                skip:parseInt(req.query.skip),
+                sort
+            }
+        }).execPopulate()
         res.send(req.user.tasks)
     }catch(e){
         res.status(500).send()

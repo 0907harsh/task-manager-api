@@ -46,12 +46,14 @@ const userSchema=new mongoose.Schema({
             required:true
         }
     }]
+},{
+    timestamps:true
 })
 //Two argument available with midldeware in mongoose
 // pre-before event is done
 // post-after event is done
 
-userSchema.virtual('tasks',{
+userSchema.virtual('tasks',{//used for populating tasks for current user
     ref:'Tasks',
     localField:'_id',
     foreignField:'creatorId'
