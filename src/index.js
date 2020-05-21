@@ -1,9 +1,6 @@
 
 const dotenv=require('dotenv')
 const result=dotenv.config({path:'./config/.env'})
-if(result.error){
-    throw result.error
-}
 const express=require('express')
 require('./db/mongoose')
 const USER=require('./modals/user')
